@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}{{ dis.name }}の流行状況（都道府県別・{{ idwr.week }}週）｜{{ SITE }}{% endblock %}
+{% block desc %}{{ dis.name }}はいま流行っている？ 全国と都道府県ごとの定点当たり報告数、今年の推移、{% if dis.warn_on %}警報・注意報の基準値、{% endif %}名古屋市の区ごとの数字。国の速報から毎週更新。{% endblock %}
+{% block jsonld %}<script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"{{ SITE }}","item":"{{ public }}/"},{"@type":"ListItem","position":2,"name":"{{ dis.name }}","item":"{{ canonical }}"}]}</script>{% endblock %}
+{% block body %}
+{% set t = m.get('総数') %}
+<h1>{{ dis.name }}の流行状況</h1>
+<p class="lead">{{ idwr.year }}年{{ idwr.week }}週（{{ idwr.start }}〜{{ idwr.end }}）。全国の定点当たり報告数は <b>{{ t.per|n2 if t else '—' }}</b>（前週 {{ t.prev|n2 if t else '—' }}）、報告数 {{ t.count|n0 if t else '—' }}人。{% set warn = prefs|selectattr('1.level','equalto','warn')|list %}{% set adv = prefs|selectattr('1.level','equalto','advisory')|list %}{% if warn %}警報レベルの目安を超えた都道府県が{{ warn|length }}、{% endif %}{% if adv %}注意報レベルの目安が{{ adv|length }}。{% endif %}</p>
+<p><a class="btn" href="{{ root }}map/?d={{ dis.slug }}">地図で見る</a> <a class="btn ghost" href="{{ root }}nagoya/?d={{ dis.slug }}">名古屋市の区で見る</a></p>
+{% if chart %}<h2>今年の推移（全国・定点当たり）</h2><div class="panel">{{ chart|safe }}</div>{% endif %}
+{% if dis.warn_on %}<p class="note">基準値（定点当たり）：警報レベル {{ dis.warn_on }}以上で始まり {{ dis.warn_off }}未満で終わる{% if dis.advisory %}・注意報レベル {{ dis.advisory }}以上{% endif %}。都道府県に当てはめたのは目安です。</p>{% endif %}
+<h2>都道府県ごと（多い順）</h2>
+<div class="panel tscroll"><table class="t"><tr><th>都道府県</th><th>定点当たり</th><th>前週</th><th>報告数</th><th></th></tr>
+{% for p, v in prefs %}<tr><td><a href="{{ root }}p/{{ D.PREF_SLUG[p] }}/">{{ p }}</a></td><td class="n"><b>{{ v.per|n2 }}</b></td><td class="n">{{ v.prev|n2 }}</td><td class="n">{{ v.count|n0 }}</td><td>{% if v.level %}<span class="badge {{ v.level }}">{{ level_label(v.level) }}の目安</span>{% endif %}</td></tr>{% endfor %}
+</table></div>
+{% if wm %}<h2>名古屋市の区ごと（{{ ngy.week }}週）</h2>
+<div class="panel tscroll"><table class="t"><tr><th>区</th><th>{{ '報告数' if dis.slug=='covid19' else '定点当たり' }}</th><th>報告数</th></tr>
+{% for w in D.NAGOYA_WARDS %}{% set v = wm.get(w) %}<tr><td><a href="{{ root }}nagoya/{{ D.WARD_SLUG[w] }}/">{{ w }}区</a></td><td class="n">{{ (v.count|n0) if dis.slug=='covid19' else (v.per|n2 if v else '—') }}</td><td class="n">{{ v.count|n0 if v else '—' }}</td></tr>{% endfor %}
+</table></div>{% endif %}
+<p class="src">出典：<a href="{{ idwr.url }}" target="_blank" rel="noopener">国立健康危機管理研究機構 IDWR速報データ {{ idwr.year }}年第{{ idwr.week }}週</a>{% if ngy %}・<a href="{{ ngy.url }}" target="_blank" rel="noopener">名古屋市感染症発生動向調査 週報 第{{ ngy.week }}週</a>{% endif %}</p>
+<h2>ほかの感染症</h2><p>{% for s in D.ORDER if s != dis.slug %}<a href="{{ root }}d/{{ s }}/">{{ D.BY_SLUG[s].name }}</a>{% if not loop.last %}・{% endif %}{% endfor %}</p>
+{% endblock %}

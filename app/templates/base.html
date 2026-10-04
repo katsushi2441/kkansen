@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}{{ SITE }}｜インフルエンザ・コロナの流行状況を地図で{% endblock %}</title>
+<meta name="description" content="{% block desc %}インフルエンザ・新型コロナ・溶連菌・マイコプラズマなど、いま流行っている感染症を都道府県と名古屋市の区ごとに地図で。国の速報と名古屋市の週報・学級閉鎖を毎週・毎日取り込み、警報・注意報の基準値と並べて示します。{% endblock %}">
+<link rel="canonical" href="{{ canonical }}">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="{{ SITE }}">
+<meta property="og:title" content="{{ self.title() }}">
+<meta property="og:description" content="{{ self.desc() }}">
+<meta property="og:url" content="{{ canonical }}">
+<meta property="og:image" content="{{ public }}/static/ogp.png">
+<meta property="og:locale" content="ja_JP">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="{{ root }}static/favicon.png">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"{{ SITE }}","url":"{{ public }}/","publisher":{"@type":"Organization","name":"株式会社エクスブリッジ","url":"https://exbridge.jp/"}}</script>
+{% block jsonld %}{% endblock %}
+<style>
+:root{--teal:#0a8f85;--teal-d:#07756d;--teal-l:#e6f4f2;--navy:#12202f;--ink:#1f2933;--muted:#5d6b7a;--line:#dfe6ea;--bg:#f6f9f9;--red:#c0392b;--red-l:#fbeae8;--amber:#b7791f;--amber-l:#fdf3e0}
+*{box-sizing:border-box}html{color-scheme:light}body{margin:0;background:var(--bg);color:var(--ink);font-family:"Noto Sans JP","Hiragino Sans","Yu Gothic",system-ui,sans-serif;line-height:1.75;font-size:16px}
+a{color:var(--teal-d)}.wrap{max-width:1040px;margin:0 auto;padding:0 16px;min-width:0}
+header.top{background:#fff;border-bottom:1px solid var(--line)}header.top .wrap{display:flex;align-items:center;gap:6px 16px;min-height:56px;flex-wrap:wrap;padding-top:6px;padding-bottom:6px}
+.brand{font-weight:800;color:var(--navy);text-decoration:none;font-size:17px}.brand small{display:block;color:var(--teal);font-weight:700;font-size:11.5px;line-height:1.2}
+nav.menu{display:flex;flex-wrap:wrap;gap:2px 14px;font-size:14px;font-weight:700}nav.menu a{color:var(--muted);text-decoration:none}nav.menu a.on{color:var(--teal-d);border-bottom:2px solid var(--teal)}
+.promo{margin-left:auto;display:flex;flex-wrap:wrap;gap:2px 12px;font-size:13px;font-weight:800}.promo a{color:#b45309;text-decoration:none}
+main{padding:18px 0 40px}h1{font-size:clamp(22px,4vw,30px);line-height:1.4;color:var(--navy);margin:0 0 8px;text-wrap:balance}h2{font-size:19px;color:var(--navy);margin:26px 0 10px;border-left:5px solid var(--teal);padding-left:10px}
+.lead{color:var(--muted);margin:0 0 14px}
+.panel{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px;margin:12px 0;min-width:0}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:10px}
+.card{border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:#fff;min-width:0;text-decoration:none;color:inherit;display:block}
+.card .k,.card .v,.card .s{display:block}.card .k{font-size:12.5px;color:var(--muted);font-weight:700}.card .v{font-size:22px;font-weight:800;color:var(--navy);line-height:1.3}.card .s{font-size:12.5px;color:var(--muted)}
+.card.warn{background:var(--red-l);border-color:#f0c4be}.card.warn .v{color:var(--red)}.card.advisory{background:var(--amber-l);border-color:#ecd9a6}
+.badge{display:inline-block;font-size:12px;font-weight:800;border-radius:999px;padding:1px 9px;background:var(--teal-l);color:var(--teal-d)}.badge.warn{background:var(--red-l);color:var(--red)}.badge.advisory{background:var(--amber-l);color:var(--amber)}
+table.t{width:100%;border-collapse:collapse;font-size:14px}table.t th,table.t td{border-bottom:1px solid var(--line);padding:7px 6px;text-align:left;vertical-align:top}table.t th{color:var(--muted);font-weight:700;white-space:nowrap}table.t td.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tscroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.note{background:var(--amber-l);border-left:4px solid var(--amber);padding:10px 12px;border-radius:8px;font-size:14px;margin:10px 0}
+.src{font-size:12.5px;color:var(--muted)}
+.btn{display:inline-block;background:var(--teal);color:#fff;border:0;border-radius:10px;padding:10px 16px;font-size:15px;font-weight:700;cursor:pointer;text-decoration:none}.btn.ghost{background:#fff;color:var(--teal-d);border:2px solid var(--teal)}
+form.find{display:flex;gap:8px;flex-wrap:wrap}form.find input{flex:1 1 240px;min-width:0;font-size:16px;padding:10px 12px;border:2px solid var(--line);border-radius:10px}
+.up{color:var(--red);font-weight:700}.down{color:var(--teal-d);font-weight:700}
+footer{border-top:1px solid var(--line);background:#fff;padding:18px 0;color:var(--muted);font-size:13px}
+.disclaim{font-size:13px;color:var(--muted)}
+{% block css %}{% endblock %}
+</style>
+{% block head %}{% endblock %}
+</head>
+<body>
+<header class="top"><div class="wrap">
+<a class="brand" href="{{ root }}">{{ SITE }}<small>全国の都道府県 ＋ 名古屋市の区・学級閉鎖</small></a>
+<nav class="menu"><a href="{{ root }}map/" class="{{ 'on' if nav=='map' }}">地図</a><a href="{{ root }}nagoya/" class="{{ 'on' if nav=='nagoya' }}">名古屋市</a><a href="{{ root }}gakkyu/" class="{{ 'on' if nav=='gakkyu' }}">学級閉鎖</a><a href="{{ root }}zensu/" class="{{ 'on' if nav=='zensu' }}">麻しん・百日咳など</a><a href="{{ root }}about" class="{{ 'on' if nav=='about' }}">データについて</a></nav>
+<!--kurage-only--><span class="promo"><a href="https://exbridge.jp/ai-it-komon.html?ref=kkansen-head-komon" target="_blank" rel="noopener">AI-IT顧問</a><a href="https://kurage.exbridge.jp/vibe-customize.html?ref=kkansen-head-vibe" target="_blank" rel="noopener">バイブカスタマイズ</a><a href="https://kurage.exbridge.jp/reseller.html?ref=kkansen-head-reseller" target="_blank" rel="noopener">販売代理店募集</a></span><!--/kurage-only-->
+</div></header>
+<main><div class="wrap">
+{% block body %}{% endblock %}
+</div></main>
+<footer><div class="wrap">
+<p style="margin:0 0 6px">数字は国（国立健康危機管理研究機構）の感染症発生動向調査の速報と、名古屋市の発表をそのまま載せています。速報はあとで確定値に直ることがあります。警報・注意報は自治体が保健所の管内ごとに出すもので、ここで都道府県・区に基準値を当てはめたのは目安です。体調や受診の判断は、医療機関や自治体の案内に従ってください。</p>
+<p style="margin:0">境界：「国土数値情報（行政区域データ）」（国土交通省）を加工して作成（CC BY 4.0）。地図：OpenFreeMap © OpenMapTiles Data from OpenStreetMap。　<a href="{{ root }}about">データについて</a>{% if buy %}　<a href="{{ buy }}" target="_blank" rel="noopener">自社のサーバーに置く一式</a>{% endif %}　© 株式会社エクスブリッジ</p>
+</div></footer>
+</body>
+</html>

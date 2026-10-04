@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}インフルエンザ・コロナの流行状況を地図で｜{{ SITE }}{% endblock %}
+{% block jsonld %}<script type="application/ld+json">{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
+{"@type":"Question","name":"いま流行っている感染症は？","acceptedAnswer":{"@type":"Answer","text":"{% if rank %}{{ idwr.year }}年{{ idwr.week }}週（{{ idwr.start }}〜{{ idwr.end }}）の全国の定点当たり報告数では、{% for r in rank[:3] %}{{ r.name }} {{ r.per|n2 }}{% if not loop.last %}、{% endif %}{% endfor %}です。{% endif %}国の感染症発生動向調査の速報から毎週更新しています。"}},
+{"@type":"Question","name":"インフルエンザの警報・注意報の基準は？","acceptedAnswer":{"@type":"Answer","text":"定点医療機関1か所あたりの1週間の報告数が30以上で警報レベル（10未満で終息）、10以上で注意報レベルです。自治体が保健所の管内ごとに判断して発表します。"}},
+{"@type":"Question","name":"名古屋市の学級閉鎖はどこで分かりますか？","acceptedAnswer":{"@type":"Answer","text":"名古屋市が発表する集団かぜ（インフルエンザ様疾患）による学級閉鎖等の状況を毎日取り込み、学校名・区・期間の一覧と区ごとの件数で表示しています。"}}]}</script>{% endblock %}
+{% block css %}
+.rank{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,230px),1fr));gap:10px}
+.find-res{margin-top:10px}
+{% endblock %}
+{% block body %}
+<h1>いま流行っている感染症を、地図で</h1>
+<p class="lead">インフルエンザ・新型コロナ・溶連菌・マイコプラズマなど19の感染症の流行状況を、全国の都道府県と名古屋市の区ごとに。{% if idwr %}全国は{{ idwr.year }}年{{ idwr.week }}週（{{ idwr.start }}〜{{ idwr.end }}）、{% endif %}{% if ngy %}名古屋市は{{ ngy.week }}週（{{ ngy.start }}〜{{ ngy.end }}）{% endif %}の数字です。</p>
+
+<div class="panel">
+<form class="find" id="find"><input id="q" name="q" placeholder="住所を入れる（例：名古屋市南区、札幌市中央区）" aria-label="住所"><button class="btn">自分の地域を見る</button><button class="btn ghost" type="button" id="gps">現在地で</button></form>
+<div class="find-res" id="res"></div>
+</div>
+
+<h2>いま流行っている順（全国・定点当たり報告数）</h2>
+<div class="rank">
+{% for r in rank[:12] %}
+<a class="card {{ 'warn' if r.warn else ('advisory' if r.adv else '') }}" href="{{ root }}d/{{ r.slug }}/">
+<span class="k">{{ r.name }}</span>
+<span class="v">{{ r.per|n2 }}</span>
+<span class="s">前週 {{ r.prev|n2 }}{% if r.per is not none and r.prev %} <span class="{{ 'up' if r.per > r.prev else 'down' }}">{{ '↑' if r.per > r.prev else '↓' }}</span>{% endif %}{% if r.warn %}・警報レベル {{ r.warn }}都道府県{% endif %}{% if r.adv %}・注意報レベル {{ r.adv }}{% endif %}</span>
+{% if not r.warn_on and r.peak %}<span class="s">今年の山（{{ r.peak|n2 }}）の{{ (100*r.per/r.peak)|round|int }}%</span>{% endif %}<span class="s">多い県：{% for p, v in r.top %}{{ p }} {{ v|n2 }}{% if not loop.last %}、{% endif %}{% endfor %}</span>
+</a>
+{% endfor %}
+</div>
+<p class="src">定点当たり報告数＝指定された医療機関（定点）1か所あたりの1週間の患者数。並び順は、警報・注意報レベルの都道府県が多い順、次に基準値に近い順（基準値の無い新型コロナなどは、今年の山に対して今が何割か）。<a href="{{ root }}map/">地図で見る →</a></p>
+
+{% if ngy %}
+<h2>名古屋市：インフルエンザ（区ごと・{{ ngy.week }}週）</h2>
+<div class="grid">
+{% for w in D.NAGOYA_WARDS %}{% set v = wards.get(w) %}
+<a class="card {{ v.level if v else '' }}" href="{{ root }}nagoya/{{ D.WARD_SLUG[w] }}/"><span class="k">{{ w }}区</span><span class="v">{{ v.per|n2 if v else '—' }}</span><span class="s">報告 {{ v.count|n0 if v else '—' }}人{% if v and v.level %}・{{ level_label(v.level) }}の目安{% endif %}</span></a>
+{% endfor %}
+</div>
+<p class="src">名古屋市感染症発生動向調査の週報から。区の定点数で割った値です。<a href="{{ root }}nagoya/">名古屋市の地図と、ほかの感染症 →</a></p>
+{% endif %}
+
+<h2>名古屋市の学級閉鎖</h2>
+<p>今シーズン（9月〜）<b>{{ season_cl|length }}件</b>、直近7日に判明した分 <b>{{ week_cl|length }}件</b>。</p>
+<div class="panel tscroll"><table class="t"><tr><th>判明日</th><th>区</th><th>施設</th><th>学年・学級</th><th>措置</th><th>期間</th></tr>
+{% for r in season_cl[:8] %}<tr><td>{{ r.found[5:] }}</td><td>{{ r.ward }}</td><td>{{ r.facility }}</td><td>{{ r.grade }}</td><td>{{ r.action }}</td><td>{{ r.period }}</td></tr>{% endfor %}
+</table></div>
+<p><a href="{{ root }}gakkyu/">学級閉鎖の一覧（区ごと・日ごと） →</a></p>
+
+<h2>よくある質問</h2>
+<div class="panel">
+<details><summary><b>いま流行っている感染症は？</b></summary><p>上の「いま流行っている順」が、国の速報（全国の定点当たり報告数）から毎週作り直した答えです。都道府県ごとの違いは<a href="{{ root }}map/">地図</a>で見られます。</p></details>
+<details><summary><b>インフルエンザの警報・注意報の基準は？</b></summary><p>定点医療機関1か所あたりの1週間の報告数が30以上で警報レベル（10未満になるまで続く）、10以上で注意報レベルです。正式な警報・注意報は、自治体が保健所の管内ごとに判断して発表します。</p></details>
+<details><summary><b>新型コロナの数字もありますか？</b></summary><p>あります。2023年5月から新型コロナは定点把握になり、ほかの感染症と同じく定点当たり報告数で比べられます。警報・注意報の基準値はありません。</p></details>
+<details><summary><b>名古屋市の学級閉鎖はどこで分かりますか？</b></summary><p>名古屋市が発表する「集団かぜ（インフルエンザ様疾患）による学級閉鎖等の状況」を毎日取り込み、<a href="{{ root }}gakkyu/">学級閉鎖のページ</a>に学校名・区・期間で並べています。</p></details>
+</div>
+
+<script>
+(function(){var R={{ root|tojson }};var res=document.getElementById('res');
+function show(j){if(j.error){res.innerHTML='<p class="note">'+j.error+'</p>';return}
+var h='<p><b>'+j.pref+(j.ward?' 名古屋市'+j.ward+'区':'')+'</b>：</p><p><a class="btn" href="'+R+'p/'+j.pref_code+'/">'+j.pref+'の流行状況</a> ';
+if(j.ward){h+='<a class="btn ghost" href="'+R+'nagoya/'+j.ward_slug+'/">'+j.ward+'区の流行状況と学級閉鎖</a>'}res.innerHTML=h+'</p>'}
+function go(u){res.textContent='調べています…';fetch(u).then(function(r){return r.json()}).then(show).catch(function(){res.textContent='調べられませんでした'})}
+document.getElementById('find').addEventListener('submit',function(e){e.preventDefault();var q=document.getElementById('q').value.trim();if(q)go(R+'api/lookup?q='+encodeURIComponent(q))});
+document.getElementById('gps').addEventListener('click',function(){if(!navigator.geolocation){res.textContent='この端末では現在地を使えません';return}
+navigator.geolocation.getCurrentPosition(function(p){go(R+'api/lookup?lat='+p.coords.latitude+'&lon='+p.coords.longitude)},function(){res.textContent='現在地を取得できませんでした'})});})();
+</script>
+{% endblock %}

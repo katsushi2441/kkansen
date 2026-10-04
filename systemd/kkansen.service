@@ -1,0 +1,16 @@
+[Unit]
+Description=Kurage 感染症マップ (kkansen) :18382
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/kojima/work/kkansen
+Environment=KKANSEN_PUBLIC=https://kurage.exbridge.jp/kkansen.php
+EnvironmentFile=-/home/kojima/work/kkansen/.env
+ExecStart=/home/kojima/work/kkansen/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 18382 --proxy-headers
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

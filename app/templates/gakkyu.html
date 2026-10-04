@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}名古屋市のインフルエンザ学級閉鎖・学年閉鎖の一覧（区ごと）｜{{ SITE }}{% endblock %}
+{% block desc %}名古屋市の集団かぜ（インフルエンザ様疾患）による学級閉鎖・学年閉鎖・休校を、学校名・区・閉鎖期間で一覧に。市の発表を毎日取り込み、区ごと・日ごとの件数も示します。{% endblock %}
+{% block body %}
+<h1>名古屋市の学級閉鎖・学年閉鎖</h1>
+<p class="lead">今シーズン（9月〜）の合計 <b>{{ total }}件</b>。名古屋市の「集団かぜ（インフルエンザ様疾患）による学級閉鎖等の状況」を毎日取り込んでいます。</p>
+<h2>区ごとの件数</h2>
+<div class="grid">{% for w in D.NAGOYA_WARDS %}<a class="card" href="?ward={{ w }}"><span class="k">{{ w }}区</span><span class="v">{{ by_ward.get(w ~ '区', 0) }}<small style="font-size:13px">件</small></span></a>{% endfor %}</div>
+<h2>判明した日ごと（直近3週間）</h2>
+<div class="panel tscroll"><table class="t"><tr>{% for d, n in days %}<th>{{ d[5:] }}</th>{% endfor %}</tr><tr>{% for d, n in days %}<td class="n">{{ n }}</td>{% endfor %}</tr></table></div>
+<h2>{{ ward ~ '区の' if ward else '' }}一覧（新しい順）</h2>
+{% if ward %}<p><a href="./">すべての区を見る</a></p>{% endif %}
+<div class="panel tscroll"><table class="t"><tr><th>判明日</th><th>区</th><th>施設</th><th>学年・学級</th><th>在籍</th><th>患者</th><th>欠席</th><th>措置</th><th>期間</th></tr>
+{% for r in cl %}<tr><td>{{ r.found[5:] }}</td><td>{{ r.ward }}</td><td>{{ r.facility }}</td><td>{{ r.grade }}</td><td class="n">{{ r.enrolled }}</td><td class="n">{{ r.patients }}</td><td class="n">{{ r.absent }}</td><td>{{ r.action }}</td><td>{{ r.period }}</td></tr>{% endfor %}
+</table></div>
+<p class="src">出典：名古屋市「集団かぜ（インフルエンザ様疾患）による学級閉鎖等の状況」（前日判明分まで）。患者数はインフルエンザ様の症状がある人の数です。</p>
+{% endblock %}

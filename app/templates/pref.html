@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}{{ pref }}の感染症の流行状況（{{ idwr.week }}週）｜{{ SITE }}{% endblock %}
+{% block desc %}{{ pref }}でいま流行っている感染症。インフルエンザ・新型コロナ・溶連菌など19疾患の定点当たり報告数を全国と比べ、警報・注意報の基準値の目安、今年の推移を示します。国の速報から毎週更新。{% endblock %}
+{% block jsonld %}<script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"{{ SITE }}","item":"{{ public }}/"},{"@type":"ListItem","position":2,"name":"{{ pref }}","item":"{{ canonical }}"}]}</script>{% endblock %}
+{% block body %}
+<h1>{{ pref }}の感染症の流行状況</h1>
+<p class="lead">{{ idwr.year }}年{{ idwr.week }}週（{{ idwr.start }}〜{{ idwr.end }}）の定点当たり報告数を、全国と並べています。</p>
+{% if code == '23' %}<p><a class="btn" href="{{ root }}nagoya/">名古屋市の区ごと・学級閉鎖を見る</a></p>{% endif %}
+<div class="panel tscroll"><table class="t"><tr><th>感染症</th><th>{{ pref }}</th><th>前週</th><th>全国</th><th>報告数</th><th></th></tr>
+{% for r in rows %}<tr><td><a href="{{ root }}d/{{ r.slug }}/">{{ r.name }}</a></td><td class="n"><b>{{ r.per|n2 }}</b></td><td class="n">{{ r.prev|n2 }}</td><td class="n">{{ r.nat|n2 }}</td><td class="n">{{ r.count|n0 }}</td><td>{% if r.level %}<span class="badge {{ r.level }}">{{ level_label(r.level) }}の目安</span>{% endif %}</td></tr>{% endfor %}
+</table></div>
+{% if flu %}<h2>インフルエンザの推移（{{ pref }}・今年）</h2><div class="panel">{{ flu|safe }}</div>{% endif %}
+{% if cov %}<h2>新型コロナの推移（{{ pref }}・今年）</h2><div class="panel">{{ cov|safe }}</div>{% endif %}
+{% if zz %}<h2>{{ pref }}の全数把握の届け出（{{ idwr.week }}週）</h2>
+<div class="panel tscroll"><table class="t"><tr><th>感染症</th><th>今週</th><th>今年の累積</th></tr>{% for z in zz %}<tr><td>{{ z.disease }}</td><td class="n">{{ z.count|n0 }}</td><td class="n">{{ z.cum|n0 }}</td></tr>{% endfor %}</table></div>{% endif %}
+<p class="src">出典：<a href="{{ idwr.url }}" target="_blank" rel="noopener">国立健康危機管理研究機構 IDWR速報データ</a>。都道府県の正式な警報・注意報は{{ pref }}の発表を確かめてください。</p>
+<h2>ほかの都道府県</h2><p>{% for p in D.PREFS %}<a href="{{ root }}p/{{ D.PREF_SLUG[p] }}/">{{ p }}</a>{% if not loop.last %}・{% endif %}{% endfor %}</p>
+{% endblock %}

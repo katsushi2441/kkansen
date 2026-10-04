@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}麻しん・百日咳・梅毒などの届け出数（{{ idwr.week }}週）｜{{ SITE }}{% endblock %}
+{% block desc %}全数把握の感染症（麻しん・百日咳・梅毒・結核・腸管出血性大腸菌など）の、今週の全国の届け出数と今年の累積。国の速報から毎週更新し、愛知県の数も並べます。{% endblock %}
+{% block body %}
+<h1>麻しん・百日咳・梅毒などの届け出数</h1>
+<p class="lead">全数把握の感染症は、診断した医師がすべて届け出るものです。{{ idwr.year }}年{{ idwr.week }}週（{{ idwr.start }}〜{{ idwr.end }}）に届け出があったもの。</p>
+<div class="panel tscroll"><table class="t"><tr><th>感染症</th><th>全国 今週</th><th>全国 今年の累積</th><th>愛知県 今週</th></tr>
+{% for z in zz %}<tr><td>{{ z.disease }}</td><td class="n"><b>{{ z.count|n0 }}</b></td><td class="n">{{ z.cum|n0 }}</td><td class="n">{{ aichi[z.disease].count|n0 if z.disease in aichi else '0' }}</td></tr>{% endfor %}
+</table></div>
+<p class="src">出典：<a href="{{ idwr.url }}" target="_blank" rel="noopener">国立健康危機管理研究機構 IDWR速報データ</a>（全数把握・速報値）。都道府県ごとの数は各都道府県のページにあります。</p>
+{% endblock %}

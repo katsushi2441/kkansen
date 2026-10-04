@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}{{ dis.name }}の流行マップ（{{ '名古屋市の区' if area=='nagoya' else '都道府県' }}）｜{{ SITE }}{% endblock %}
+{% block desc %}{{ dis.name }}の定点当たり報告数を{{ '名古屋市の16区' if area=='nagoya' else '47都道府県' }}ごとに色分けした地図。国の速報と名古屋市の週報から毎週更新し、警報・注意報の基準値と並べて示します。{% endblock %}
+{% block head %}<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.css"><script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.7.1/maplibre-gl.js"></script>{% endblock %}
+{% block css %}
+#map{height:min(70vh,640px);border-radius:14px;border:1px solid var(--line)}
+.ctl{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 10px}.ctl select{font-size:15px;padding:8px 10px;border:2px solid var(--line);border-radius:10px;max-width:100%}
+.seg a{display:inline-block;padding:7px 12px;border:2px solid var(--teal);text-decoration:none;font-weight:700;font-size:14px}.seg a:first-child{border-radius:10px 0 0 10px}.seg a:last-child{border-radius:0 10px 10px 0;margin-left:-2px}.seg a.on{background:var(--teal);color:#fff}
+.legend{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12.5px;color:var(--muted);margin:8px 0}.legend i{display:inline-block;width:14px;height:14px;border-radius:3px;vertical-align:-2px;margin-right:4px;border:1px solid #0001}
+.maplibregl-popup-content{font-size:14px;line-height:1.6}
+{% endblock %}
+{% block body %}
+<h1>{{ dis.name }}の流行マップ</h1>
+<div class="ctl">
+<span class="seg"><a href="?d={{ dis.slug }}&area=japan" class="{{ 'on' if area!='nagoya' }}">全国（都道府県）</a><a href="?d={{ dis.slug }}&area=nagoya" class="{{ 'on' if area=='nagoya' }}">名古屋市（区）</a></span>
+<select id="dsel" aria-label="感染症">{% for s in D.ORDER %}<option value="{{ s }}" {{ 'selected' if s==dis.slug }}>{{ D.BY_SLUG[s].name }}</option>{% endfor %}</select>
+</div>
+<p class="lead" id="cap">読み込み中…</p>
+<div id="map"></div>
+<div class="legend" id="legend"></div>
+<p class="src" id="srcl"></p>
+{% if dis.warn_on %}<p class="note">{{ dis.name }}の基準値（定点当たり）：警報レベル {{ dis.warn_on }}以上（{{ dis.warn_off }}未満で終息）{% if dis.advisory %}・注意報レベル {{ dis.advisory }}以上{% endif %}。都道府県・区に当てはめたのは目安で、正式な発令は自治体が保健所の管内ごとに行います。</p>{% else %}<p class="note">{{ dis.name }}には、国の警報・注意報の基準値がありません。色は今週の値の大きさだけを示します。</p>{% endif %}
+<p><a href="{{ root }}d/{{ dis.slug }}/">{{ dis.name }}の推移と都道府県の一覧 →</a></p>
+<script>
+(function(){
+var R={{ root|tojson }}, AREA={{ area|tojson }}, D={{ dis|tojson }};
+document.getElementById('dsel').addEventListener('change',function(){location.href='?d='+this.value+'&area='+AREA});
+var COL=['#f3f6f4','#fde9b8','#fbc87a','#f59e5b','#e3683f','#b7311f'];
+var map=new maplibregl.Map({container:'map',style:'https://tiles.openfreemap.org/styles/positron',center:AREA==='nagoya'?[136.93,35.15]:[137.5,37.6],zoom:AREA==='nagoya'?10.3:4.1,minZoom:3,maxZoom:14,attributionControl:{compact:true}});
+map.addControl(new maplibregl.NavigationControl({showCompass:false}),'top-right');
+function stops(vals){if(D.warn_on){var w=D.warn_on;var c=[w*0.1,w*0.25,w*0.5,(D.advisory&&D.advisory<w)?D.advisory:w*0.75,w];c.sort(function(a,b){return a-b});for(var i=1;i<c.length;i++){if(c[i]<=c[i-1])c[i]=c[i-1]+0.01}return c}
+var m=Math.max.apply(null,vals.concat([0.0001]));return [m*0.15,m*0.3,m*0.5,m*0.7,m*0.9]}
+function colorExpr(st){return ['case',['==',['get','v'],null],'#eeeeee',['step',['get','v'],COL[0],st[0],COL[1],st[1],COL[2],st[2],COL[3],st[3],COL[4],st[4],COL[5]]]}
+function fmt(v,n){return v==null?'—':Number(v).toFixed(n)}
+Promise.all([fetch(R+'static/'+(AREA==='nagoya'?'nagoya_wards':'pref')+'.geojson').then(r=>r.json()),fetch(R+'api/'+(AREA==='nagoya'?'nagoya':'pref')+'?d='+D.slug).then(r=>r.json())]).then(function(a){
+var gj=a[0],api=a[1],data=api.data,useCount=(AREA==='nagoya'&&D.slug==='covid19');
+var vals=[];gj.features.forEach(function(f){var k=AREA==='nagoya'?f.properties.name.replace(/区$/,''):f.properties.name;var d=data[k]||{};
+f.properties.v=useCount?(d.count==null?null:d.count):(d.per==null?null:d.per);f.properties.c=d.count==null?null:d.count;f.properties.lv=d.level||'';
+if(AREA==='nagoya'){f.properties.cl=(api.closures_by_ward||{})[k]||0}if(f.properties.v!=null)vals.push(f.properties.v)});
+var st=stops(vals);
+document.getElementById('cap').textContent=(AREA==='nagoya'?'名古屋市 ':'全国 ')+api.year+'年'+api.week+'週（'+api.start+'〜'+api.end+'）・'+(useCount?'報告数':'定点当たり報告数');
+var lg=document.getElementById('legend');var labs=['〜'+fmt(st[0],1)].concat(st.slice(0,4).map(function(s,i){return fmt(s,1)+'〜'+fmt(st[i+1],1)})).concat([fmt(st[4],1)+'以上'+(D.warn_on&&!useCount?'（警報レベル）':'')]);
+lg.innerHTML=labs.map(function(t,i){return '<span><i style="background:'+COL[i]+'"></i>'+t+'</span>'}).join('')+'<span><i style="background:#eee"></i>数字なし</span>';
+document.getElementById('srcl').innerHTML='出典：<a href="'+api.source+'" target="_blank" rel="noopener">'+(AREA==='nagoya'?'名古屋市感染症発生動向調査 週報':'国立健康危機管理研究機構 IDWR速報データ')+'</a>';
+function onReady(){
+var first=null;map.getStyle().layers.forEach(function(l){if(l.type==='symbol'){if(!first)first=l.id;if(l.layout&&l.layout['text-field']){try{map.setLayoutProperty(l.id,'text-field',['coalesce',['get','name:ja'],['get','name']])}catch(e){}}}});
+map.addSource('a',{type:'geojson',data:gj});
+map.addLayer({id:'fill',type:'fill',source:'a',paint:{'fill-color':colorExpr(st),'fill-opacity':0.72}},first);
+map.addLayer({id:'line',type:'line',source:'a',paint:{'line-color':'#ffffff','line-width':AREA==='nagoya'?1.6:0.8}},first);
+map.addLayer({id:'warn',type:'line',source:'a',filter:['==',['get','lv'],'warn'],paint:{'line-color':'#7a1a10','line-width':2.4}},first);
+if(AREA!=='nagoya'){map.fitBounds([[126.8,25.6],[146.2,45.6]],{padding:10,duration:0})}else{map.fitBounds([[136.79,35.03],[137.06,35.27]],{padding:10,duration:0})}
+map.on('click','fill',function(e){var p=e.features[0].properties;var name=p.name;
+var h='<b>'+name+'</b><br>'+(useCount?'報告数 ':'定点当たり ')+(p.v==null||p.v==='null'?'—':fmt(p.v,2))+(useCount?'人':'')+'<br>報告数 '+(p.c==null||p.c==='null'?'—':Math.round(p.c)+'人')+(p.lv==='warn'?'<br><b style="color:#c0392b">警報レベルの目安</b>':p.lv==='advisory'?'<br><b style="color:#b7791f">注意報レベルの目安</b>':'');
+if(AREA==='nagoya'){h+='<br>学級閉鎖など（今シーズン）'+p.cl+'件<br><a href="'+R+'nagoya/'+({{ D.WARD_SLUG|tojson }})[name.replace(/区$/,'')]+'/">'+name+'のページ →</a>'}
+else{var code=('0'+({{ D.PREFS|tojson }}.indexOf(name)+1)).slice(-2);h+='<br><a href="'+R+'p/'+code+'/">'+name+'のページ →</a>'}
+new maplibregl.Popup().setLngLat(e.lngLat).setHTML(h).addTo(map)});
+map.on('mouseenter','fill',function(){map.getCanvas().style.cursor='pointer'});map.on('mouseleave','fill',function(){map.getCanvas().style.cursor=''});
+}
+if(map.isStyleLoaded())onReady();else map.on('load',onReady);}).catch(function(){document.getElementById('cap').textContent='地図のデータを読み込めませんでした'});
+})();
+</script>
+{% endblock %}
