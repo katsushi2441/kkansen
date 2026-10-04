@@ -14,6 +14,28 @@
 - 全数把握の感染症（麻しん・百日咳・梅毒など）の届け出数
 - 住所・現在地から都道府県と名古屋市の区を引く（国土地理院の住所検索・逆ジオコーダ）
 - 病名・都道府県・区ごとのページ、JSON API、llms.txt、sitemap.xml
+- AI エージェント向けの MCP（`POST /mcp`、読み取り専用・8つの道具）
+
+## AIから使う（MCP）
+
+`/mcp` が MCP（Model Context Protocol）の入口です（Streamable HTTP・セッションなし・JSON で返す）。道具は8つで、どれも読み取り専用です。答えには対象の週・出典 URL・注意書きが付きます。
+
+| 道具 | 内容 |
+|---|---|
+| `get_trending` | いま流行っている感染症（全国） |
+| `get_prefecture_status` | 都道府県の流行状況 |
+| `get_disease_by_prefecture` | 感染症ごとの47都道府県一覧 |
+| `get_nagoya_wards` | 名古屋市の区ごとの流行状況 |
+| `get_nagoya_class_closures` | 名古屋市の学級閉鎖 |
+| `get_trend` | 今年の週ごとの推移（全国・都道府県・名古屋市の区） |
+| `get_notifiable_diseases` | 全数把握の感染症 |
+| `get_status_by_address` | 住所から地域の流行状況（住所は保存しない） |
+
+```
+claude mcp add --transport http kkansen https://kurage.exbridge.jp/kkansen.php/mcp
+```
+
+自分のサーバーで動かした場合は `https://<あなたのサーバー>/mcp` が同じように使えます。
 
 ## しないこと
 

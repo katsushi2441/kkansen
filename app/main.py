@@ -18,6 +18,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from . import diseases as D
+from . import mcp as M
 from . import store
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -330,6 +331,28 @@ def api_lookup(q: str = "", lat: float | None = None, lon: float | None = None):
     return out
 
 
+# ---------------- MCP（AI エージェント向け） ----------------
+
+@app.post("/mcp")
+async def mcp_post(request: Request):
+    """Streamable HTTP の MCP。セッションは持たず、JSON-RPC（1件か配列）に JSON で答える"""
+    try:
+        msg = json.loads(await request.body())
+    except Exception:
+        return JSONResponse({"jsonrpc": "2.0", "id": None, "error": {"code": -32700, "message": "Parse error"}}, status_code=400)
+    if isinstance(msg, list):
+        out = [r for r in (M.handle(m) for m in msg) if r is not None]
+        return JSONResponse(out) if out else Response(status_code=202)
+    r = M.handle(msg)
+    return JSONResponse(r) if r is not None else Response(status_code=202)
+
+
+@app.get("/mcp")
+def mcp_get():
+    # サーバーから押し出す通知は無いので SSE は開かない（仕様どおり 405）
+    return JSONResponse({"error": "POST で JSON-RPC を送ってください。使い方: " + PUBLIC + "/about#mcp"}, status_code=405, headers={"Allow": "POST"})
+
+
 # ---------------- 検索エンジン・AI 向け ----------------
 
 @app.get("/robots.txt", response_class=PlainTextResponse)
@@ -369,5 +392,6 @@ def llms():
               "- 都道府県・区に警報・注意報の基準値を当てはめたのは目安。正式な警報・注意報は自治体が保健所の管内ごとに出す。",
               "", "## ページ", f"- 地図: {PUBLIC}/map/", f"- 名古屋市（区・学級閉鎖）: {PUBLIC}/nagoya/", f"- 学級閉鎖: {PUBLIC}/gakkyu/",
               f"- 病名ごと: {PUBLIC}/d/influenza/ など", f"- 都道府県ごと: {PUBLIC}/p/23/ （愛知県）など", f"- データについて: {PUBLIC}/about",
+              "", "## MCP（AI エージェント向け）", f"- {PUBLIC}/mcp （Streamable HTTP・読み取り専用・登録不要。道具: get_trending, get_prefecture_status, get_disease_by_prefecture, get_nagoya_wards, get_nagoya_class_closures, get_trend, get_notifiable_diseases, get_status_by_address）",
               "", "## API（JSON）", f"- {PUBLIC}/api/pref?d=influenza", f"- {PUBLIC}/api/nagoya?d=covid19", f"- {PUBLIC}/api/closures"]
     return "\n".join(lines) + "\n"
