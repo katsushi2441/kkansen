@@ -62,6 +62,19 @@ def ctx(request: Request, **kw) -> dict:
     return base
 
 
+def xshare(text: str, path: str, slot: str, tags: list[str] | None = None) -> str:
+    """X の投稿画面を開く URL。共有されたリンクには ref=x-share-<slot> を付けて、Xからの戻りを数えられるようにする"""
+    url = f"{PUBLIC}{path}" + ("&" if "?" in path else "?") + f"ref=x-share-{slot}"
+    q = {"text": text, "url": url}
+    if tags:
+        q["hashtags"] = ",".join(t.lstrip("#") for t in tags)
+    return "https://x.com/intent/post?" + urllib.parse.urlencode(q)
+
+
+def lvtxt(lv: str) -> str:
+    return f"（{D.level_label(lv)}の目安）" if lv else ""
+
+
 def svg_series(series: list[tuple[int, float | None]], lines: list[tuple[float, str, str]] | None = None, w: int = 640, h: int = 200, unit: str = "定点当たり") -> str:
     """週ごとの推移の折れ線（外部ライブラリなしの SVG）"""
     pts = [(x, y) for x, y in series if y is not None]
@@ -112,7 +125,9 @@ def home(request: Request):
     week_cl = store.closures(c, days=7)
     season_cl = store.closures(c)
     c.close()
-    return T.TemplateResponse(request, "index.html", ctx(request, nav="home", rank=rank, wards=wards, week_cl=week_cl, season_cl=season_cl))
+    lines = [f"・{r['name'].split('（')[0]} {fmt(r['per'])}" + (f"（警報レベルの目安 {r['warn']}都道府県）" if r["warn"] else (f"（注意報レベルの目安 {r['adv']}都道府県）" if r["adv"] else "")) for r in rank[:3]]
+    share = xshare(f"いま流行っている感染症（全国・{w['year']}年{w['week']}週・定点当たり）\n" + "\n".join(lines), "/", "home", ["感染症", "インフルエンザ"]) if w else ""
+    return T.TemplateResponse(request, "index.html", ctx(request, nav="home", rank=rank, wards=wards, week_cl=week_cl, season_cl=season_cl, share=share))
 
 
 @app.get("/map/", response_class=HTMLResponse)
@@ -134,7 +149,10 @@ def disease_page(request: Request, slug: str):
     wm = store.ward_map(c, slug, nw["year"], nw["week"]) if nw else {}
     c.close()
     prefs = sorted(((p, v) for p, v in m.items() if p != "総数"), key=lambda kv: -(kv[1]["per"] or 0))
-    return T.TemplateResponse(request, "disease.html", ctx(request, nav="d", dis=D.BY_SLUG[slug], m=m, prefs=prefs, wm=wm,
+    t = m.get("総数") or {}
+    top = "、".join(f"{p} {fmt(v['per'])}" for p, v in prefs[:3])
+    share = xshare(f"【{D.BY_SLUG[slug]['name']}】全国の定点当たり {fmt(t.get('per'))}（前週 {fmt(t.get('prev'))}・{w['year']}年{w['week']}週）。多いのは {top}", f"/d/{slug}/", f"d-{slug}", [D.BY_SLUG[slug]['name'].split('（')[0].replace('（', ''), "感染症"]) if w else ""
+    return T.TemplateResponse(request, "disease.html", ctx(request, nav="d", dis=D.BY_SLUG[slug], m=m, prefs=prefs, wm=wm, share=share,
                                                   chart=svg_series(series, threshold_lines(slug))))
 
 
@@ -154,8 +172,15 @@ def pref_page(request: Request, code: str):
     flu = store.pref_series(c, "influenza", pref, w["year"])
     cov = store.pref_series(c, "covid19", pref, w["year"])
     c.close()
-    rows.sort(key=lambda r: ({"warn": 0, "advisory": 1}.get(r["level"], 2), -((r["per"] or 0) / (r["nat"] or 1 if r["nat"] else 1))))
-    return T.TemplateResponse(request, "pref.html", ctx(request, nav="p", pref=pref, code=code, rows=rows, zz=zz,
+    def _rk(r):
+        rel = (r["per"] or 0) / (r["nat"] or 1)
+        if (r["per"] or 0) < 0.3:
+            rel *= 0.1   # 髄膜炎のような数のごく少ない病気が、全国比だけで上に来ないようにする
+        return ({"warn": 0, "advisory": 1}.get(r["level"], 2), r["slug"] == "ari", -rel)
+    rows.sort(key=_rk)
+    lines = [f"・{r['name'].split('（')[0]} {fmt(r['per'])}{lvtxt(r['level'])}" for r in rows if r["per"] and r["slug"] != "ari"][:3]
+    share = xshare(f"【{pref}】いま流行っている感染症（{w['year']}年{w['week']}週・定点当たり）\n" + "\n".join(lines), f"/p/{code}/", f"p-{code}", [pref, "感染症"])
+    return T.TemplateResponse(request, "pref.html", ctx(request, nav="p", pref=pref, code=code, rows=rows, zz=zz, share=share,
                                                flu=svg_series(flu, threshold_lines("influenza")), cov=svg_series(cov)))
 
 
@@ -173,7 +198,10 @@ def nagoya_page(request: Request, d: str = "influenza"):
     for r in cl:
         by_ward.setdefault(r["ward"], 0)
         by_ward[r["ward"]] += 1
-    return T.TemplateResponse(request, "nagoya.html", ctx(request, nav="nagoya", dis=D.BY_SLUG[d], wm=wm, by_ward=by_ward, cl=cl[:30],
+    key = "count" if d == "covid19" else "per"
+    topw = sorted(((k, v) for k, v in wm.items() if k != "計" and v.get(key) is not None), key=lambda kv: -kv[1][key])[:3]
+    share = xshare(f"【名古屋市】{D.BY_SLUG[d]['name']}（{nw['week']}週）。多い区は " + "、".join(f"{k}区 {fmt(v[key], 0 if key == 'count' else 2)}" for k, v in topw) + f"。学級閉鎖は今シーズン{len(cl)}件", f"/nagoya/?d={d}", f"nagoya-{d}", ["名古屋市", "感染症"]) if nw else ""
+    return T.TemplateResponse(request, "nagoya.html", ctx(request, nav="nagoya", dis=D.BY_SLUG[d], wm=wm, by_ward=by_ward, cl=cl[:30], share=share,
                                                  chart=svg_series(series, threshold_lines(d) if d != "covid19" else None,
                                                                   unit="報告数" if d == "covid19" else "定点当たり")))
 
@@ -193,7 +221,9 @@ def ward_page(request: Request, ws: str):
     flu = store.ward_series(c, "influenza", ward, nw["year"])
     cl = store.closures(c, ward=ward + "区")
     c.close()
-    return T.TemplateResponse(request, "ward.html", ctx(request, nav="nagoya", ward=ward, ws=ws, rows=rows, cl=cl, flu=svg_series(flu, threshold_lines("influenza"))))
+    lines = [f"・{r['name'].split('（')[0]} {int(r['count'])}人{lvtxt(r['level'])}" for r in rows if r["count"]][:3]
+    share = xshare(f"【名古屋市{ward}区】いま流行っている感染症（{nw['week']}週）\n" + "\n".join(lines) + f"\n今シーズンの学級閉鎖など {len(cl)}件", f"/nagoya/{ws}/", f"ward-{ws}", [f"名古屋市{ward}区", "感染症"])
+    return T.TemplateResponse(request, "ward.html", ctx(request, nav="nagoya", ward=ward, ws=ws, rows=rows, cl=cl, share=share, flu=svg_series(flu, threshold_lines("influenza"))))
 
 
 @app.get("/gakkyu/", response_class=HTMLResponse)
@@ -208,7 +238,9 @@ def gakkyu_page(request: Request, ward: str = ""):
         by_ward[r["ward"]] = by_ward.get(r["ward"], 0) + 1
         by_day[r["found"]] = by_day.get(r["found"], 0) + 1
     days = sorted(by_day.items())[-21:]
-    return T.TemplateResponse(request, "gakkyu.html", ctx(request, nav="gakkyu", cl=cl, by_ward=by_ward, days=days, ward=ward, total=len(allc)))
+    topw = sorted(by_ward.items(), key=lambda kv: -kv[1])[:3]
+    share = xshare(f"【名古屋市】インフルエンザなどによる学級閉鎖・学年閉鎖、今シーズン{len(allc)}件。多い区は " + "、".join(f"{k} {v}件" for k, v in topw), "/gakkyu/", "gakkyu", ["名古屋市", "学級閉鎖", "インフルエンザ"])
+    return T.TemplateResponse(request, "gakkyu.html", ctx(request, nav="gakkyu", cl=cl, by_ward=by_ward, days=days, ward=ward, total=len(allc), share=share))
 
 
 @app.get("/zensu/", response_class=HTMLResponse)

@@ -6,6 +6,7 @@
 {% set t = m.get('総数') %}
 <h1>{{ dis.name }}の流行状況</h1>
 <p class="lead">{{ idwr.year }}年{{ idwr.week }}週（{{ idwr.start }}〜{{ idwr.end }}）。全国の定点当たり報告数は <b>{{ t.per|n2 if t else '—' }}</b>（前週 {{ t.prev|n2 if t else '—' }}）、報告数 {{ t.count|n0 if t else '—' }}人。{% set warn = prefs|selectattr('1.level','equalto','warn')|list %}{% set adv = prefs|selectattr('1.level','equalto','advisory')|list %}{% if warn %}警報レベルの目安を超えた都道府県が{{ warn|length }}、{% endif %}{% if adv %}注意報レベルの目安が{{ adv|length }}。{% endif %}</p>
+{% set share_label = '流行状況' %}{% include '_share.html' %}
 <p><a class="btn" href="{{ root }}map/?d={{ dis.slug }}">地図で見る</a> <a class="btn ghost" href="{{ root }}nagoya/?d={{ dis.slug }}">名古屋市の区で見る</a></p>
 {% if chart %}<h2>今年の推移（全国・定点当たり）</h2><div class="panel">{{ chart|safe }}</div>{% endif %}
 {% if dis.warn_on %}<p class="note">基準値（定点当たり）：警報レベル {{ dis.warn_on }}以上で始まり {{ dis.warn_off }}未満で終わる{% if dis.advisory %}・注意報レベル {{ dis.advisory }}以上{% endif %}。都道府県に当てはめたのは目安です。</p>{% endif %}

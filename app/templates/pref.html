@@ -5,6 +5,7 @@
 {% block body %}
 <h1>{{ pref }}の感染症の流行状況</h1>
 <p class="lead">{{ idwr.year }}年{{ idwr.week }}週（{{ idwr.start }}〜{{ idwr.end }}）の定点当たり報告数を、全国と並べています。</p>
+{% set share_label = '県の流行状況' %}{% include '_share.html' %}
 {% if code == '23' %}<p><a class="btn" href="{{ root }}nagoya/">名古屋市の区ごと・学級閉鎖を見る</a></p>{% endif %}
 <div class="panel tscroll"><table class="t"><tr><th>感染症</th><th>{{ pref }}</th><th>前週</th><th>全国</th><th>報告数</th><th></th></tr>
 {% for r in rows %}<tr><td><a href="{{ root }}d/{{ r.slug }}/">{{ r.name }}</a></td><td class="n"><b>{{ r.per|n2 }}</b></td><td class="n">{{ r.prev|n2 }}</td><td class="n">{{ r.nat|n2 }}</td><td class="n">{{ r.count|n0 }}</td><td>{% if r.level %}<span class="badge {{ r.level }}">{{ level_label(r.level) }}の目安</span>{% endif %}</td></tr>{% endfor %}

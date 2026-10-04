@@ -4,6 +4,7 @@
 {% block body %}
 <h1>名古屋市の学級閉鎖・学年閉鎖</h1>
 <p class="lead">今シーズン（9月〜）の合計 <b>{{ total }}件</b>。名古屋市の「集団かぜ（インフルエンザ様疾患）による学級閉鎖等の状況」を毎日取り込んでいます。</p>
+{% set share_label = '学級閉鎖の状況' %}{% include '_share.html' %}
 <h2>区ごとの件数</h2>
 <div class="grid">{% for w in D.NAGOYA_WARDS %}<a class="card" href="?ward={{ w }}"><span class="k">{{ w }}区</span><span class="v">{{ by_ward.get(w ~ '区', 0) }}<small style="font-size:13px">件</small></span></a>{% endfor %}</div>
 <h2>判明した日ごと（直近3週間）</h2>

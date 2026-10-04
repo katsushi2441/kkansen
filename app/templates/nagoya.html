@@ -5,6 +5,7 @@
 {% block body %}
 <h1>名古屋市の{{ dis.name }}（区ごと）</h1>
 <p class="lead">{{ ngy.year }}年{{ ngy.week }}週（{{ ngy.start }}〜{{ ngy.end }}）。市全体の報告数 {{ wm.get('計', {}).get('count')|n0 }}人{% if dis.slug != 'covid19' %}・定点当たり {{ wm.get('計', {}).get('per')|n2 }}{% endif %}。</p>
+{% set share_label = '区の流行状況' %}{% include '_share.html' %}
 <form method="get" class="find" style="margin:0 0 10px"><select name="d" onchange="this.form.submit()" style="font-size:15px;padding:8px 10px;border:2px solid var(--line);border-radius:10px">{% for s in D.ORDER %}<option value="{{ s }}" {{ 'selected' if s==dis.slug }}>{{ D.BY_SLUG[s].name }}</option>{% endfor %}</select> <a class="btn" href="{{ root }}map/?d={{ dis.slug }}&area=nagoya">区の地図で見る</a></form>
 <div class="grid">
 {% for w in D.NAGOYA_WARDS %}{% set v = wm.get(w) %}
