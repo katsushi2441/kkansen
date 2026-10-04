@@ -1,0 +1,19 @@
+# 例：/opt/kkansen に置いて、ユーザーの systemd で常駐させる
+#   cp systemd/kkansen.service.example ~/.config/systemd/user/kkansen.service
+#   systemctl --user enable --now kkansen.service
+[Unit]
+Description=Kurage 感染症マップ (kkansen)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/kkansen
+Environment=KKANSEN_PUBLIC=https://example.com/kkansen.php
+EnvironmentFile=-/opt/kkansen/.env
+ExecStart=/opt/kkansen/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000 --proxy-headers
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target
