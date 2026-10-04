@@ -24,6 +24,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SITE = "Kurage 感染症マップ"
 PUBLIC = os.environ.get("KKANSEN_PUBLIC", "https://kurage.exbridge.jp/kkansen.php")
 BUY = os.environ.get("KKANSEN_BUY", "")
+PV = os.environ.get("KKANSEN_PV", "")          # 紹介動画（mp4）の URL。空ならトップに出さない
+PV_POSTER = os.environ.get("KKANSEN_PV_POSTER", "")
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 app.mount("/static", StaticFiles(directory=os.path.join(HERE, "static")), name="static")
 T = Jinja2Templates(directory=os.path.join(HERE, "templates"))
@@ -53,7 +55,7 @@ def ctx(request: Request, **kw) -> dict:
     c = store.db()
     idwr = store.latest(c, "idwr")
     ngy = store.latest(c, "nagoya")
-    base = {"request": request, "root": root(request), "public": PUBLIC, "buy": BUY, "idwr": idwr, "ngy": ngy,
+    base = {"request": request, "root": root(request), "public": PUBLIC, "buy": BUY, "pv": PV, "pv_poster": PV_POSTER, "idwr": idwr, "ngy": ngy,
             "refreshed": store.meta(c, "refreshed"), "canonical": PUBLIC + request.url.path.rstrip("/").replace("//", "/") + ("/" if request.url.path.endswith("/") else "")}
     c.close()
     base.update(kw)

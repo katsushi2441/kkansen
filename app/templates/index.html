@@ -7,11 +7,14 @@
 {% block css %}
 .rank{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,230px),1fr));gap:10px}
 .find-res{margin-top:10px}
+.pv{margin:0 0 14px;max-width:760px}.pv video{width:100%;height:auto;display:block;border-radius:14px;background:#000;aspect-ratio:16/9}.pv figcaption{margin-top:6px}
 {% endblock %}
 {% block body %}
 <h1>いま流行っている感染症を、地図で</h1>
 <p class="lead">インフルエンザ・新型コロナ・溶連菌・マイコプラズマなど19の感染症の流行状況を、全国の都道府県と名古屋市の区ごとに。{% if idwr %}全国は{{ idwr.year }}年{{ idwr.week }}週（{{ idwr.start }}〜{{ idwr.end }}）、{% endif %}{% if ngy %}名古屋市は{{ ngy.week }}週（{{ ngy.start }}〜{{ ngy.end }}）{% endif %}の数字です。</p>
 
+{% if pv %}<figure class="pv"><video controls playsinline preload="none" poster="{{ pv_poster }}" src="{{ pv }}" width="1920" height="1080"></video><figcaption class="src">45秒で分かる {{ SITE }}（実写の映像は AI 生成・MiniMax H3）</figcaption></figure>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"VideoObject","name":"{{ SITE }}の紹介動画","description":"いま流行っている感染症を、全国の都道府県と名古屋市の区ごとに地図で見るシステムの紹介。","thumbnailUrl":"{{ pv_poster }}","contentUrl":"{{ pv }}","uploadDate":"2026-10-04","duration":"PT45S"}</script>{% endif %}
 <div class="panel">
 <form class="find" id="find"><input id="q" name="q" placeholder="住所を入れる（例：名古屋市南区、札幌市中央区）" aria-label="住所"><button class="btn">自分の地域を見る</button><button class="btn ghost" type="button" id="gps">現在地で</button></form>
 <div class="find-res" id="res"></div>
