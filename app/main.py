@@ -240,8 +240,44 @@ def gakkyu_page(request: Request, ward: str = ""):
         by_day[r["found"]] = by_day.get(r["found"], 0) + 1
     days = sorted(by_day.items())[-21:]
     topw = sorted(by_ward.items(), key=lambda kv: -kv[1])[:3]
+    # いちばん新しい判明日の件と、直近7日・その前の7日（判明日で数える）
+    last = max(by_day) if by_day else None
+    latest = [r for r in allc if r["found"] == last]
+    if last:
+        ld = dt.date.fromisoformat(last)
+        n7 = sum(1 for r in allc if (ld - dt.date.fromisoformat(r["found"])).days < 7)
+        p7 = sum(1 for r in allc if 7 <= (ld - dt.date.fromisoformat(r["found"])).days < 14)
+    else:
+        n7 = p7 = 0
+    kinds = {}
+    for r in allc:
+        k = school_kind(r["facility"])
+        kinds[k] = kinds.get(k, 0) + 1
+    c2 = store.db()
+    pdf_date = store.meta(c2, "closure_pdf_date")
+    c2.close()
     share = xshare(f"【名古屋市】インフルエンザなどによる学級閉鎖・学年閉鎖、今シーズン{len(allc)}件。多い区は " + "、".join(f"{k} {v}件" for k, v in topw), "/gakkyu/", "gakkyu", ["名古屋市", "学級閉鎖", "インフルエンザ"])
-    return T.TemplateResponse(request, "gakkyu.html", ctx(request, nav="gakkyu", cl=cl, by_ward=by_ward, days=days, ward=ward, total=len(allc), share=share))
+    return T.TemplateResponse(request, "gakkyu.html", ctx(request, nav="gakkyu", cl=cl, by_ward=by_ward, days=days, ward=ward, total=len(allc), share=share,
+                                                         last=last, latest=latest, n7=n7, p7=p7, kinds=sorted(kinds.items(), key=lambda kv: -kv[1]),
+                                                         pdf_date=pdf_date, jd=jdate))
+
+
+SCHOOL_KINDS = ("特別支援学校", "小学校", "中学校", "高等学校", "高校", "幼稚園", "保育", "専門学校", "大学")
+
+
+def school_kind(name: str) -> str:
+    for k in SCHOOL_KINDS:
+        if k in name:
+            return {"高校": "高等学校", "保育": "保育園など"}.get(k, k)
+    return "そのほか"
+
+
+def jdate(iso: str | None) -> str:
+    """2026-10-02 → 10月2日"""
+    if not iso:
+        return ""
+    d = dt.date.fromisoformat(iso[:10])
+    return f"{d.month}月{d.day}日"
 
 
 @app.get("/zensu/", response_class=HTMLResponse)
@@ -364,10 +400,13 @@ def robots():
 def sitemap():
     c = store.db()
     w = store.latest(c, "idwr")
+    gk = store.meta(c, "closures_changed") or None
     c.close()
     lm = w["end"] if w else dt.date.today().isoformat()
-    urls = ["/", "/map/", "/nagoya/", "/gakkyu/", "/zensu/", "/about"] + [f"/d/{s}/" for s in D.ORDER] + [f"/p/{c}/" for c in D.PREF_SLUG.values()] + [f"/nagoya/{s}/" for s in D.WARD_SLUG.values()]
+    urls = ["/", "/map/", "/nagoya/", "/zensu/", "/about"] + [f"/d/{s}/" for s in D.ORDER] + [f"/p/{c}/" for c in D.PREF_SLUG.values()] + [f"/nagoya/{s}/" for s in D.WARD_SLUG.values()]
     body = "".join(f"<url><loc>{PUBLIC}{u}</loc><lastmod>{lm}</lastmod></url>" for u in urls)
+    # 学級閉鎖のページは平日ほぼ毎日変わるので、新しい件が入った日を lastmod にする
+    body += f"<url><loc>{PUBLIC}/gakkyu/</loc><lastmod>{gk or lm}</lastmod></url>"
     return Response(f'<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">{body}</urlset>', media_type="application/xml")
 
 

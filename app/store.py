@@ -4,6 +4,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 import os
+import re
 import sqlite3
 
 from . import diseases as D
@@ -76,6 +77,11 @@ def save_closures(c, d: dict) -> int:
                         (r["id"], d["season"], r["found"], r["ward"], r["facility"], r["grade"], r["enrolled"], r["patients"], r["absent"], r["action"], r["period"], now))
         n += cur.rowcount
     meta(c, "closure_url", d["url"])
+    m = re.search(r"/(\d{8})[a-z]?_syuudankaze", d["url"])
+    if m:   # 市のPDFの日付（ファイル名の先頭。前日判明分まで）
+        meta(c, "closure_pdf_date", f"{m.group(1)[:4]}-{m.group(1)[4:6]}-{m.group(1)[6:]}")
+    if n:   # 新しい件が入った日。sitemap の lastmod に使う
+        meta(c, "closures_changed", dt.date.today().isoformat())
     return n
 
 
