@@ -304,9 +304,39 @@ def parse_closures(pdf: bytes, season_start_year: int) -> list[dict]:
     return out
 
 
+WARDS = ("千種", "東", "北", "西", "中村", "中", "昭和", "瑞穂", "熱田", "中川", "港", "南", "守山", "緑", "名東", "天白")
+
+
+def parse_closure_today(page: str) -> list[dict]:
+    """市のページの「本日判明した集団発生施設（YYYY年M月D日）」の表。履歴PDFは「前日判明分まで」なので、
+    当日の分はこの表にしか無い（翌日のPDFに同じ行が入る。区・施設名・学年の書き方はPDFと同じなので id も同じになる）"""
+    import html as H
+    m = re.search(r"本日判明した集団発生施設[（(](\d{4})年(\d{1,2})月(\d{1,2})日[）)]", page)
+    if not m:
+        return []
+    found = dt.date(int(m.group(1)), int(m.group(2)), int(m.group(3))).isoformat()
+    t = page[m.end():page.find("</table>", m.end())]
+    out = []
+    for tr in re.findall(r"<tr.*?</tr>", t, re.S):
+        c = [re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", H.unescape(x))).strip() for x in re.findall(r"<t[hd][^>]*>(.*?)</t[hd]>", tr, re.S)]
+        if len(c) < 8 or c[0] not in WARDS or not (c[3].isdigit() and c[4].isdigit() and c[5].isdigit()):
+            continue
+        rec = {"found": found, "ward": c[0] + "区", "facility": c[1], "grade": c[2], "enrolled": int(c[3]), "patients": int(c[4]),
+               "absent": int(c[5]), "action": c[6], "period": c[7]}
+        rec["id"] = hashlib.sha1("|".join(str(rec[k]) for k in ("found", "ward", "facility", "grade", "action")).encode()).hexdigest()[:16]
+        out.append(rec)
+    return out
+
+
 def fetch_closures(today: dt.date | None = None) -> dict:
     today = today or dt.date.today()
     url = closure_pdf_url()
     m = re.search(r"rireki(\d{4})-\d{4}", url)
     season = int(m.group(1)) if m else (today.year if today.month >= 8 else today.year - 1)
-    return {"url": url, "season": season, "rows": parse_closures(get(url), season)}
+    rows = parse_closures(get(url), season)
+    try:   # 当日判明分（ページの表）も足す。表が読めなくても PDF の分は止めない
+        seen = {r["id"] for r in rows}
+        rows += [r for r in parse_closure_today(get(NAGOYA_CLOSURE_PAGE).decode("utf-8", "replace")) if r["id"] not in seen]
+    except Exception:
+        pass
+    return {"url": url, "season": season, "rows": rows}
