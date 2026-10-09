@@ -1,8 +1,9 @@
 {% extends "base.html" %}
-{% block title %}名古屋市の学級閉鎖 最新（{{ jd(last) }}判明分）｜{{ SITE }}{% endblock %}
+{% block title %}名古屋市の学級閉鎖 最新（{% if pdf_date %}{{ jd(pdf_date) }}更新・{% endif %}{{ jd(last) }}判明分まで）｜{{ SITE }}{% endblock %}
 {% block desc %}名古屋市の学級閉鎖・学年閉鎖・休校の最新の状況。{{ jd(last) }}に判明した{{ latest|length }}件と、直近7日の{{ n7 }}件、今シーズン（9月〜）の{{ total }}件。学校名・区・閉鎖期間の一覧を、市の発表（前日判明分まで）から毎日更新します。{% endblock %}
 {% block body %}
 <h1>名古屋市の学級閉鎖・学年閉鎖（最新）</h1>
+{% if pdf_date %}<p class="src" style="margin:0 0 6px"><b>{{ jd(pdf_date) }}更新</b>（名古屋市の{{ jd(pdf_date) }}付けの発表を取り込み済み）</p>{% endif %}
 <p class="lead">{% if last %}<b>{{ jd(last) }}</b>に判明した学級閉鎖などは <b>{{ latest|length }}件</b>。直近7日（{{ jd(last) }}まで）は <b>{{ n7 }}件</b>{% if p7 %}（その前の7日は {{ p7 }}件）{% endif %}、今シーズン（9月〜）の合計は <b>{{ total }}件</b>です。{% endif %}名古屋市の「集団かぜ（インフルエンザ様疾患）による学級閉鎖等の状況」を毎日取り込んでいます{% if pdf_date %}（いまの数字は市の {{ jd(pdf_date) }} 付けの発表＝前日判明分まで）{% endif %}。</p>
 {% if latest %}<h2>{{ jd(last) }}に判明した分</h2>
 <div class="panel tscroll"><table class="t"><tr><th>区</th><th>施設</th><th>学年・学級</th><th>患者</th><th>措置</th><th>期間</th></tr>
